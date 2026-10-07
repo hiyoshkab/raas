@@ -3,3 +3,4 @@ uvicorn[standard]
 python-multipart
 pytest
 httpx
+qdrant-client

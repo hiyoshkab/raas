@@ -16,12 +16,3 @@ def chunk_text(text: str, chunk_size: int, overlap: int = 0):
             break
 
     return chunks
-
-def read_limited(upload_file, max_bytes, block=64 * 1024):
-    data = bytearray()
-    while block_bytes := upload_file.read(block):
-        data.extend(block_bytes)
-        if len(data) > max_bytes:
-            raise ValueError("File too large")
-    return bytes(data)
-

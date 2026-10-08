@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 
-from app import config, embedder, store
+from app import config, embedder, store, llm
 from app.chunker import chunk_text
 from app.schemas import IngestResponse, QueryRequest, QueryResponse, Source
 
@@ -24,6 +24,8 @@ async def lifespan(app):
 
 app = FastAPI(title="RaaS", lifespan=lifespan)
 
+def get_generate():
+    return llm.generate
 
 def get_model(request: Request):
     return request.app.state.model
@@ -91,24 +93,34 @@ def ingest(file: UploadFile = File(...), model=Depends(get_model), client=Depend
 
 
 @app.post("/query", response_model=QueryResponse)
-def query( body: QueryRequest, model=Depends(get_model), client=Depends(get_client)):
+def query( 
+        body: QueryRequest, 
+        model=Depends(get_model), 
+        client=Depends(get_client), 
+        generate=Depends(get_generate)
+    ):
+
     try:
         vector = embedder.embed_query(model, body.question, expected_dim=config.EMBED_DIM)
-        
+
     except embedder.EmbeddingError as e:
         log.error("Embedding failed for query: %s", e)
         raise HTTPException(status_code=502, detail=str(e))
 
     store.ensure_collection(client, config.COLLECTION, config.EMBED_DIM)
-    results = store.search(client, config.COLLECTION, vector, top_k=body.top_k)
+    results = store.search(client, config.COLLECTION, vector, limit=body.top_k)
     sources = [
-        Source(filename=p["filename"], chunk_index=p["chunk_index"], score=score, text=p["text"])
-        for score, p in results
+        Source(filename=payload["filename"], chunk_index=payload["chunk_index"], score=score, text=payload["text"]) for score, payload in results
     ]
+
     if not sources:
         return QueryResponse(answer="No documents have been ingested yet.", sources=[])
     
-    return QueryResponse(
-        answer="The language model isn't connected yet. These are the most relevant passages.",
-        sources=sources,
-    )
+    try:
+        answer = generate(body.question, [payload for _, payload in results])
+
+    except llm.LLMError as e:
+        log.error("LLM call failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e))
+    
+    return QueryResponse(answer=answer, sources=sources)

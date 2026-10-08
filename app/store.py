@@ -34,7 +34,8 @@ def upsert_chunks(client: QdrantClient, collection_name: str, filename: str, chu
     points = [
         models.PointStruct(
             id=_point_id(filename, i),
-            vector=vector
+            vector=vector,
+            payload={"filename": filename, "chunk_index": i, "text": chunks[i]},
         )
         for i, vector in enumerate(vectors)
     ]
@@ -57,7 +58,7 @@ def search(client: QdrantClient, collection_name: str, vector: list, limit: int 
     try:
         results = client.query_points(
             collection_name=collection_name, 
-            query_vector=vector, 
+            query=vector, 
             limit=limit, 
             with_payload=True
             )

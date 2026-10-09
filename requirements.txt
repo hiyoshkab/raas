@@ -5,3 +5,5 @@ pytest
 httpx
 qdrant-client
 fastembed
+openai
+azure-identity

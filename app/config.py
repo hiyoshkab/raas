@@ -1,9 +1,7 @@
 from os import getenv
 
-OLLAMA_URL = getenv("OLLAMA_URL", "http://localhost:11434")
-LLM_MODEL = getenv("LLM_MODEL", "llama3.1:latest")
-LLM_NUM_CTX = int(getenv("LLM_NUM_CTX", "8192"))
-LLM_TEMPERATURE = float(getenv("LLM_TEMPERATURE", "0.1"))
+AZURE_OPENAI_ENDPOINT = getenv("AZURE_OPENAI_ENDPOINT", "[REDACTED]")
+AZURE_OPENAI_DEPLOYMENT = getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5.4-mini")
 LLM_TIMEOUT = float(getenv("LLM_TIMEOUT", "300"))
 
 QDRANT_URL = getenv("QDRANT_URL", "http://localhost:6333")

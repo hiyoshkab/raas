@@ -1,9 +1,10 @@
-import os
 import re
+from functools import lru_cache
 
 from app import config
-import app.config
-import httpx
+from azure.core.exceptions import AzureError
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI, OpenAIError
 
 SYSTEM = (
     "You answer questions using only the numbered sources provided. "
@@ -13,6 +14,7 @@ SYSTEM = (
 )
 
 NO_SOURCES_ANSWER = "No relevant documents were found."
+AZURE_TOKEN_SCOPE = "https://ai.azure.com/.default"
 
 
 class LLMError(RuntimeError):
@@ -28,41 +30,35 @@ def build_prompt(question, sources):
     return f"Sources:\n\n{context}\n\nQuestion: {question}"
 
 
+@lru_cache(maxsize=1)
+def _get_client():
+    if not config.AZURE_OPENAI_ENDPOINT:
+        raise LLMError("Set AZURE_OPENAI_ENDPOINT to your Azure AI endpoint")
+
+    token_provider = get_bearer_token_provider(
+        DefaultAzureCredential(), AZURE_TOKEN_SCOPE
+    )
+    return OpenAI(
+        base_url=config.AZURE_OPENAI_ENDPOINT,
+        api_key=token_provider,
+        timeout=config.LLM_TIMEOUT,
+    )
+
+
 def generate(question, sources):
     if not sources:
         return NO_SOURCES_ANSWER
 
-    url = config.OLLAMA_URL
-    model = config.LLM_MODEL
-    if not model:
-        raise LLMError("Set LLM_MODEL to the name of a model you have pulled in Ollama")
-
-    payload = {
-        "model": model,
-        "stream": False,
-        "options": {
-            "num_ctx": config.LLM_NUM_CTX,
-            "temperature": config.LLM_TEMPERATURE,
-        },
-        "messages": [
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": build_prompt(question, sources)},
-        ],
-    }
-
     try:
-        response = httpx.post(
-            f"{url}/api/chat",
-            json=payload,
-            timeout=float(config.LLM_TIMEOUT),
+        response = _get_client().responses.create(
+            model=config.AZURE_OPENAI_DEPLOYMENT,
+            instructions=SYSTEM,
+            input=build_prompt(question, sources),
         )
-        response.raise_for_status()
-    except httpx.ConnectError as e:
-        raise LLMError(f"Cannot reach Ollama at {url}. Is it running?") from e
-    except httpx.HTTPStatusError as e:
-        raise LLMError(f"Ollama returned {e.response.status_code}: {e.response.text}") from e
+    except (AzureError, OpenAIError) as e:
+        raise LLMError(f"Azure OpenAI request failed: {e}") from e
 
-    return response.json()["message"]["content"]
+    return response.output_text
 
 
 def extract_citations(answer, n_sources):

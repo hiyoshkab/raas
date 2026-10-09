@@ -2,3 +2,4 @@
 __pycache__/
 .pytest_cache/
 .env
+sample_contract.txt

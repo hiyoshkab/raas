@@ -3,3 +3,8 @@ __pycache__/
 .pytest_cache/
 .env
 sample_contract.txt
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars

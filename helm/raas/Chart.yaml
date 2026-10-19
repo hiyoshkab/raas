@@ -1,0 +1,6 @@
+apiVersion: v2
+name: raas
+description: RAAS application and Qdrant deployment
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

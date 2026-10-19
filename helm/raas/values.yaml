@@ -1,0 +1,47 @@
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8000
+
+appConfig:
+  azureOpenAIEndpoint: ""
+  azureOpenAIDeployment: gpt-5.4-mini
+  llmTimeout: "300"
+  collection: documents
+  embedModel: BAAI/bge-small-en-v1.5
+  embedDim: "384"
+  embedBatchSize: "64"
+  maxUploadBytes: "5242880"
+  chunkSize: "512"
+  overlap: "64"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+qdrant:
+  image:
+    repository: qdrant/qdrant
+    tag: v1.13.2
+    pullPolicy: IfNotPresent
+  persistence:
+    storageClassName: managed-csi
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi

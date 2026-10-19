@@ -54,14 +54,17 @@ jobs:
 
   helm:
     needs: detect-app-changes
-    if: github.event_name != 'push' || needs.detect-app-changes.outputs.app_changed != 'true'
+    if: >-
+      (inputs.image_repository != '' && inputs.image_tag != '') ||
+      github.event_name != 'push' ||
+      needs.detect-app-changes.outputs.app_changed != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Azure Login
         uses: azure/login@v2
-        with: 
+        with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set up kubelogin
@@ -85,7 +88,7 @@ jobs:
 
       - name: Read deployed image
         id: image
-        if: github.event_name != 'workflow_call'
+        if: inputs.image_repository == '' || inputs.image_tag == ''
         shell: bash
         run: |
           if ! helm status raas --namespace raas >/dev/null 2>&1; then
@@ -100,7 +103,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Helm Deploy
-        env: 
+        env:
           IMAGE_REPOSITORY: ${{ inputs.image_repository || steps.image.outputs.repository }}
           IMAGE_TAG: ${{ inputs.image_tag || steps.image.outputs.tag }}
           AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}

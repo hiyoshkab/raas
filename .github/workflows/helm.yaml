@@ -21,6 +21,7 @@ on:
       - "!app/**"
       - "!requirements.txt"
       - "!Dockerfile"
+      - ".github/workflows/helm.yaml"
   workflow_dispatch:
 
 permissions:

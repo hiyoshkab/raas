@@ -1,8 +1,11 @@
 # RAAS Helm chart
 
 This chart installs the RAAS API and its Qdrant StatefulSet into the `raas`
-namespace. The deployment workflow runs tests, builds and pushes the API image
-tagged with the commit SHA, then installs or upgrades this chart with Helm.
+namespace. The app pipeline runs tests, builds and pushes the API image tagged
+with the commit SHA, then calls the reusable Helm workflow to deploy that image.
+Changes under `helm/` trigger the same reusable workflow directly, reusing the
+image repository and tag from the currently installed Helm release instead of
+rebuilding the image.
 
 ## Deploy from GitHub Actions
 
@@ -12,6 +15,8 @@ The workflow expects these GitHub repository variables:
   workflow, for example `docker.io/YOUR_DOCKERHUB_USERNAME`.
 - `AKS_CLUSTER_NAME`: the AKS cluster name.
 - `AKS_RESOURCE_GROUP`: the Azure resource group containing the cluster.
+- `AZURE_OPENAI_ENDPOINT`: endpoint provided to the app's ConfigMap at deploy
+  time.
 
 It expects these GitHub Actions secrets:
 
@@ -26,8 +31,8 @@ OIDC with a federated identity is preferable when configured, because it avoids
 keeping a long-lived Azure client secret in GitHub. The AKS Terraform
 configuration disables local accounts, so the Azure identity also needs the
 Azure Kubernetes Service Cluster User role and suitable Kubernetes/Azure RBAC
-permissions. If authentication to the cluster fails, configure `kubelogin` for
-the workflow's non-admin AKS context.
+permissions. The deploy workflow installs `kubelogin` and configures the AKS
+context to use it for Entra authentication.
 
 Render the chart locally with:
 

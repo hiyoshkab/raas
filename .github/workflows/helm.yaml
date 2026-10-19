@@ -1,0 +1,115 @@
+name: Helm Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      image_repository:
+        description: Container image repository to deploy; omit to reuse the installed release's image.
+        required: false
+        type: string
+      image_tag:
+        description: Container image tag to deploy; omit to reuse the installed release's image.
+        required: false
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+  push:
+    branches: [main]
+    paths:
+      - "helm/**"
+      - "!app/**"
+      - "!requirements.txt"
+      - "!Dockerfile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect-app-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app_changed: ${{ steps.changes.outputs.app_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect app image input changes
+        id: changes
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          app_changed=false
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]] &&
+            [[ ! "$BEFORE" =~ ^0+$ ]] &&
+            git diff --name-only "$BEFORE" "$AFTER" |
+              grep -Eq '^(app/|requirements\.txt$|Dockerfile$)'; then
+            app_changed=true
+          fi
+          echo "app_changed=$app_changed" >> "$GITHUB_OUTPUT"
+
+  helm:
+    needs: detect-app-changes
+    if: github.event_name != 'push' || needs.detect-app-changes.outputs.app_changed != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with: 
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set up kubelogin
+        uses: azure/use-kubelogin@v1
+        with:
+          kubelogin-version: v0.0.24
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          cluster-name: ${{ vars.AKS_CLUSTER_NAME }}
+          resource-group: ${{ vars.AKS_RESOURCE_GROUP }}
+          admin: "false"
+          use-kubelogin: "true"
+
+      - name: Setup Helm
+        id: install
+        uses: azure/setup-helm@v5
+        with:
+          version: "3.12.0"
+
+      - name: Read deployed image
+        id: image
+        if: github.event_name != 'workflow_call'
+        shell: bash
+        run: |
+          if ! helm status raas --namespace raas >/dev/null 2>&1; then
+            echo "::error::No existing raas Helm release. Run the app build/deploy workflow first."
+            exit 1
+          fi
+
+          values="$(helm get values raas --namespace raas --output json)"
+          repository="$(jq -er '.image.repository | select(length > 0)' <<< "$values")"
+          tag="$(jq -er '.image.tag | select(length > 0)' <<< "$values")"
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Helm Deploy
+        env: 
+          IMAGE_REPOSITORY: ${{ inputs.image_repository || steps.image.outputs.repository }}
+          IMAGE_TAG: ${{ inputs.image_tag || steps.image.outputs.tag }}
+          AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+        run: |
+          helm upgrade --install raas ./helm/raas \
+            --create-namespace \
+            --namespace raas \
+            --set-string image.repository="${IMAGE_REPOSITORY}" \
+            --set-string image.tag="${IMAGE_TAG}" \
+            --set-string appConfig.azureOpenAIEndpoint="${AZURE_OPENAI_ENDPOINT}" \
+            --atomic \
+            --timeout 10m

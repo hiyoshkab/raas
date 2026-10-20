@@ -12,6 +12,8 @@ spec:
       app: app-backend
   template:
     metadata:
+      annotations:
+        helm.sh/revision: {{ .Release.Revision | quote }}
       labels:
         app: app-backend
         app.kubernetes.io/name: raas
@@ -24,7 +26,7 @@ spec:
       containers:
         - name: raas-backend
           image: "{{ required "image.repository is required" .Values.image.repository }}:{{ required "image.tag is required" .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ if eq .Values.image.tag "latest" }}Always{{ else }}{{ .Values.image.pullPolicy }}{{ end }}
           ports:
             - name: http
               containerPort: 8000

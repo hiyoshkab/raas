@@ -18,47 +18,17 @@ on:
     branches: [main]
     paths:
       - "helm/**"
+      - ".github/workflows/helm.yaml"
       - "!app/**"
       - "!requirements.txt"
       - "!Dockerfile"
-      - ".github/workflows/helm.yaml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  detect-app-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      app_changed: ${{ steps.changes.outputs.app_changed }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect app image input changes
-        id: changes
-        shell: bash
-        env:
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.sha }}
-        run: |
-          app_changed=false
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]] &&
-            [[ ! "$BEFORE" =~ ^0+$ ]] &&
-            git diff --name-only "$BEFORE" "$AFTER" |
-              grep -Eq '^(app/|requirements\.txt$|Dockerfile$)'; then
-            app_changed=true
-          fi
-          echo "app_changed=$app_changed" >> "$GITHUB_OUTPUT"
-
   helm:
-    needs: detect-app-changes
-    if: >-
-      (inputs.image_repository != '' && inputs.image_tag != '') ||
-      github.event_name != 'push' ||
-      needs.detect-app-changes.outputs.app_changed != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,25 +57,19 @@ jobs:
         with:
           version: "3.12.0"
 
-      - name: Read deployed image
+      - name: Get Latest Image Tag
         id: image
-        if: inputs.image_repository == '' || inputs.image_tag == ''
+        if: inputs.image_tag == ''
+        env: 
+          DOCKERHUB_REPO: ${{ vars.DOCKERHUB_REPO }}
         shell: bash
         run: |
-          if ! helm status raas --namespace raas >/dev/null 2>&1; then
-            echo "::error::No existing raas Helm release. Run the app build/deploy workflow first."
-            exit 1
-          fi
-
-          values="$(helm get values raas --namespace raas --output json)"
-          repository="$(jq -er '.image.repository | select(length > 0)' <<< "$values")"
-          tag="$(jq -er '.image.tag | select(length > 0)' <<< "$values")"
-          echo "repository=$repository" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          tag=$(curl -fsSL "https://hub.docker.com/v2/repositories/${DOCKERHUB_REPO}/raas-backend/tags?page_size=1" | jq -r '.results[0].name')
+          echo tag=$tag >> $GITHUB_OUTPUT
 
       - name: Helm Deploy
         env:
-          IMAGE_REPOSITORY: ${{ inputs.image_repository || steps.image.outputs.repository }}
+          IMAGE_REPOSITORY: ${{ inputs.image_repository || vars.DOCKERHUB_REPO }}/raas-backend
           IMAGE_TAG: ${{ inputs.image_tag || steps.image.outputs.tag }}
           AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
         run: |

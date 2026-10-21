@@ -44,6 +44,16 @@ variable "aks_admin_group_object_id" {
   }
 }
 
+variable "github_actions_service_principal_object_id" {
+  type        = string
+  description = "Microsoft Entra service principal object ID for the GitHub Actions deployment identity."
+
+  validation {
+    condition     = can(regex("^[0-9a-fA-F-]{36}$", var.github_actions_service_principal_object_id))
+    error_message = "Provide a valid Microsoft Entra service principal object ID."
+  }
+}
+
 variable "vnet_address_space" {
   type        = list(string)
   description = "Address space for the AKS virtual network."

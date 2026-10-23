@@ -89,3 +89,84 @@ variable "msi_id" {
   description = "The Managed Service Identity ID. Set this value if you're running this example using Managed Identity as the authentication method."
   default     = null
 }
+
+variable "app_identity_name" {
+  type        = string
+  description = "Name of the user-assigned identity used by the application."
+  default     = "raas-app-identity"
+}
+
+variable "app_namespace" {
+  type        = string
+  description = "Kubernetes namespace containing the application service account."
+  default     = "raas"
+}
+
+variable "app_service_account_name" {
+  type        = string
+  description = "Kubernetes service account federated to the application identity."
+  default     = "app-backend"
+}
+
+variable "foundry_name" {
+  type        = string
+  description = "Name of the existing Azure AI Foundry account to import and manage."
+}
+
+variable "foundry_resource_group_name" {
+  type        = string
+  description = "Resource group containing the existing Azure AI Foundry account."
+}
+
+variable "foundry_location" {
+  type        = string
+  description = "Azure region of the existing Azure AI Foundry account."
+}
+
+variable "foundry_kind" {
+  type        = string
+  description = "Kind of the existing Azure AI Foundry account."
+  default     = "AIServices"
+}
+
+variable "foundry_sku_name" {
+  type        = string
+  description = "SKU of the existing Azure AI Foundry account."
+  default     = "S0"
+}
+
+variable "foundry_custom_subdomain_name" {
+  type        = string
+  description = "Custom subdomain of the existing Azure AI Foundry account."
+}
+
+variable "foundry_deployment_name" {
+  type        = string
+  description = "Name of the existing model deployment."
+}
+
+variable "foundry_model_format" {
+  type        = string
+  description = "Format of the existing Foundry model deployment."
+  default     = "OpenAI"
+}
+
+variable "foundry_model_name" {
+  type        = string
+  description = "Model name for the existing Foundry deployment."
+}
+
+variable "foundry_model_version" {
+  type        = string
+  description = "Model version for the existing Foundry deployment."
+}
+
+variable "foundry_deployment_sku_name" {
+  type        = string
+  description = "SKU name of the existing Foundry model deployment."
+}
+
+variable "foundry_deployment_capacity" {
+  type        = number
+  description = "Provisioned capacity of the existing Foundry model deployment."
+}

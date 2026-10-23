@@ -5,3 +5,11 @@ output "resource_group_name" {
 output "kubernetes_cluster_name" {
   value = azurerm_kubernetes_cluster.aks.name
 }
+
+output "foundry_endpoint" {
+  value = azurerm_cognitive_account.foundry.endpoint
+}
+
+output "app_identity_client_id" {
+  value = azurerm_user_assigned_identity.app.client_id
+}

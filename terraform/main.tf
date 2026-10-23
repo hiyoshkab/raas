@@ -43,7 +43,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
     tenant_id          = data.azurerm_client_config.current.tenant_id
   }
 
-  local_account_disabled = true
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+  local_account_disabled    = true
 
   default_node_pool {
     name           = "agentpool"
@@ -108,3 +110,17 @@ resource "azurerm_role_assignment" "github_actions_aks_namespace_writer" {
 }
 
 resource "random_uuid" "github_actions_aks_namespace_writer_role_assignment" {}
+
+resource "azurerm_user_assigned_identity" "app" {
+  location            = azurerm_resource_group.rg.location
+  name                = var.app_identity_name
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_federated_identity_credential" "app" {
+  name                      = "${var.app_identity_name}-federation"
+  user_assigned_identity_id = azurerm_user_assigned_identity.app.id
+  issuer                    = azurerm_kubernetes_cluster.aks.oidc_issuer_url
+  subject                   = "system:serviceaccount:${var.app_namespace}:${var.app_service_account_name}"
+  audience                  = ["api://AzureADTokenExchange"]
+}

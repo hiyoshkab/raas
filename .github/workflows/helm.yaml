@@ -72,11 +72,13 @@ jobs:
           IMAGE_REPOSITORY: ${{ inputs.image_repository || vars.DOCKERHUB_REPO }}/raas-backend
           IMAGE_TAG: ${{ inputs.image_tag || steps.image.outputs.tag }}
           AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+          AZURE_APP_CLIENT_ID: ${{ vars.AZURE_APP_CLIENT_ID }}
         run: |
           helm upgrade --install raas ./helm/raas \
             --namespace raas \
             --set-string image.repository="${IMAGE_REPOSITORY}" \
             --set-string image.tag="${IMAGE_TAG}" \
             --set-string appConfig.azureOpenAIEndpoint="${AZURE_OPENAI_ENDPOINT}" \
+            --set-string azureWorkloadIdentity.clientId="${AZURE_APP_CLIENT_ID}" \
             --atomic \
             --timeout 10m

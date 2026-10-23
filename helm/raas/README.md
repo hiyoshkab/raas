@@ -17,6 +17,9 @@ The workflow expects these GitHub repository variables:
 - `AKS_RESOURCE_GROUP`: the Azure resource group containing the cluster.
 - `AZURE_OPENAI_ENDPOINT`: endpoint provided to the app's ConfigMap at deploy
   time.
+- `AZURE_APP_CLIENT_ID`: client ID from Terraform's `app_identity_client_id`
+  output. It configures the app's Kubernetes service account for Azure
+  Workload Identity.
 
 It expects these GitHub Actions secrets:
 
@@ -32,7 +35,9 @@ keeping a long-lived Azure client secret in GitHub. The AKS Terraform
 configuration disables local accounts, so the Azure identity also needs the
 Azure Kubernetes Service Cluster User role and suitable Kubernetes/Azure RBAC
 permissions. The deploy workflow installs `kubelogin` and configures the AKS
-context to use it for Entra authentication.
+context to use it for Entra authentication. The app uses a separate
+user-assigned identity federated to its Kubernetes service account; it does not
+inherit the node identity's Azure permissions.
 
 Render the chart locally with:
 
@@ -40,7 +45,8 @@ Render the chart locally with:
 helm template raas ./helm/raas \
   --namespace raas \
   --set-string image.repository=docker.io/YOUR_DOCKERHUB_USERNAME/raas-backend \
-  --set-string image.tag=sha-YOUR_COMMIT_SHA
+  --set-string image.tag=sha-YOUR_COMMIT_SHA \
+  --set-string azureWorkloadIdentity.clientId=YOUR_APP_IDENTITY_CLIENT_ID
 ```
 
 For a private Docker Hub image, configure an image-pull secret in the `raas`

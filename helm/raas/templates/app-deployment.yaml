@@ -18,7 +18,9 @@ spec:
         app: app-backend
         app.kubernetes.io/name: raas
         app.kubernetes.io/instance: {{ .Release.Name }}
+        azure.workload.identity/use: "true"
     spec:
+      serviceAccountName: {{ .Values.azureWorkloadIdentity.serviceAccountName }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

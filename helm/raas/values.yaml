@@ -22,6 +22,10 @@ appConfig:
   chunkSize: "512"
   overlap: "64"
 
+azureWorkloadIdentity:
+  clientId: ""
+  serviceAccountName: app-backend
+
 resources:
   requests:
     cpu: 100m

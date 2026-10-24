@@ -95,7 +95,7 @@ resource "azurerm_role_assignment" "github_actions_aks_cluster_user" {
   name                 = random_uuid.github_actions_aks_cluster_user_role_assignment.result
   scope                = azurerm_kubernetes_cluster.aks.id
   role_definition_name = "Azure Kubernetes Service Cluster User Role"
-  principal_id         = var.github_actions_service_principal_object_id
+  principal_id         = var.gha_service_principal_object_id
   principal_type       = "ServicePrincipal"
 }
 
@@ -105,7 +105,7 @@ resource "azurerm_role_assignment" "github_actions_aks_namespace_writer" {
   name                 = random_uuid.github_actions_aks_namespace_writer_role_assignment.result
   scope                = "${azurerm_kubernetes_cluster.aks.id}/namespaces/raas"
   role_definition_name = "Azure Kubernetes Service RBAC Writer"
-  principal_id         = var.github_actions_service_principal_object_id
+  principal_id         = var.gha_service_principal_object_id
   principal_type       = "ServicePrincipal"
 }
 

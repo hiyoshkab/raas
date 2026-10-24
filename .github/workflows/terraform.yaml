@@ -1,17 +1,19 @@
 name: Terraform
 
 on:
-  pull_request:
-    paths:
-      - "terraform/**"
-      - ".github/workflows/terraform.yml"
   push:
     branches:
       - main
     paths:
       - "terraform/**"
-      - ".github/workflows/terraform.yml"
+      - ".github/workflows/terraform.yaml"
   workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply Terraform changes after review"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -21,8 +23,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Format and validate
+  plan:
+    name: Terraform Plan
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,11 +39,112 @@ jobs:
         with:
           terraform_version: 1.16.5
 
-      - name: Check formatting
-        run: terraform fmt -check -recursive
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Initialize providers
-        run: terraform init -backend=false -input=false -lockfile=readonly
+      - name: Initialize remote backend
+        env:
+          TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+          TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+          TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+        run: |
+          terraform init -reconfigure -input=false -lockfile=readonly \
+            -backend-config="resource_group_name=${TF_STATE_RESOURCE_GROUP}" \
+            -backend-config="storage_account_name=${TF_STATE_STORAGE_ACCOUNT}" \
+            -backend-config="container_name=${TF_STATE_CONTAINER}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="use_azuread_auth=true"
 
-      - name: Validate configuration
-        run: terraform validate
+      - name: Create Terraform plan
+        env:
+          TF_VAR_aks_admin_group_object_id: ${{ vars.AKS_ADMIN_GROUP_OBJECT_ID }}
+          TF_VAR_aks_admin_group_principal_type: ${{ vars.AKS_ADMIN_GROUP_PRINCIPAL_TYPE }}
+          TF_VAR_aks_sku_tier: ${{ vars.AKS_SKU_TIER }}
+          TF_VAR_gha_service_principal_object_id: ${{ vars.GHA_SERVICE_PRINCIPAL_OBJECT_ID }}
+          TF_VAR_node_sku: ${{ vars.NODE_SKU }}
+          TF_VAR_node_count: ${{ vars.NODE_COUNT }}
+          TF_VAR_resource_group_location: ${{ vars.RESOURCE_GROUP_LOCATION }}
+          TF_VAR_foundry_name: ${{ vars.FOUNDRY_NAME }}
+          TF_VAR_foundry_resource_group_name: ${{ vars.FOUNDRY_RESOURCE_GROUP_NAME }}
+          TF_VAR_foundry_location: ${{ vars.FOUNDRY_LOCATION }}
+          TF_VAR_foundry_kind: ${{ vars.FOUNDRY_KIND }}
+          TF_VAR_foundry_sku_name: ${{ vars.FOUNDRY_SKU_NAME }}
+          TF_VAR_foundry_custom_subdomain_name: ${{ vars.FOUNDRY_CUSTOM_SUBDOMAIN_NAME }}
+          TF_VAR_foundry_deployment_name: ${{ vars.FOUNDRY_DEPLOYMENT_NAME }}
+          TF_VAR_foundry_model_format: ${{ vars.FOUNDRY_MODEL_FORMAT }}
+          TF_VAR_foundry_model_name: ${{ vars.FOUNDRY_MODEL_NAME }}
+          TF_VAR_foundry_model_version: ${{ vars.FOUNDRY_MODEL_VERSION }}
+          TF_VAR_foundry_deployment_sku_name: ${{ vars.FOUNDRY_DEPLOYMENT_SKU_NAME }}
+          TF_VAR_foundry_deployment_capacity: ${{ vars.FOUNDRY_DEPLOYMENT_CAPACITY }}
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+          retention-days: 1
+
+      - name: Publish plan in job summary
+        run: |
+          {
+            echo "## Terraform plan"
+            echo
+            echo "<details><summary>Show plan</summary>"
+            echo
+            echo '```terraform'
+            terraform show -no-color tfplan
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+  
+  apply:
+    name: Terraform Apply
+    needs: plan
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.apply }}
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+        
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+      - name: Initialize remote backend
+        env:
+          TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+          TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+          TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+        run: |
+          terraform init -reconfigure -input=false -lockfile=readonly \
+            -backend-config="resource_group_name=${TF_STATE_RESOURCE_GROUP}" \
+            -backend-config="storage_account_name=${TF_STATE_STORAGE_ACCOUNT}" \
+            -backend-config="container_name=${TF_STATE_CONTAINER}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="use_azuread_auth=true"
+      
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform
+        
+      - name: Apply Terraform plan
+        run: terraform apply -input=false -auto-approve tfplan
+      
+      

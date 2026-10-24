@@ -4,9 +4,9 @@ from pathlib import PurePosixPath
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 
-from app import config, embedder, store, llm
-from app.chunker import chunk_text
-from app.schemas import IngestResponse, QueryRequest, QueryResponse, Source
+from app_backend import config, embedder, store, llm
+from app_backend.chunker import chunk_text
+from app_backend.schemas import IngestResponse, QueryRequest, QueryResponse, Source
 
 log = logging.getLogger(__name__)
 

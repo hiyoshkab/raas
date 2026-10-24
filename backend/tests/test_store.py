@@ -1,7 +1,7 @@
 import pytest
 from qdrant_client import QdrantClient
 
-from app import store
+from app_backend import store
 
 
 @pytest.fixture

@@ -19,9 +19,6 @@ on:
     paths:
       - "helm/**"
       - ".github/workflows/helm.yaml"
-      - "!app/**"
-      - "!requirements.txt"
-      - "!Dockerfile"
   workflow_dispatch:
 
 permissions:

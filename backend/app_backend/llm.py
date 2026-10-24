@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache
 
-from app import config
+from app_backend import config
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import OpenAI, OpenAIError

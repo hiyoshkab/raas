@@ -1,6 +1,6 @@
 import pytest
 
-from app.chunker import chunk_text
+from app_backend.chunker import chunk_text
 
 
 def test_chunk_text_splits_words_into_chunks():

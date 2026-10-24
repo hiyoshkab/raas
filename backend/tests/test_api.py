@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from qdrant_client import QdrantClient
 
-from app import config, embedder, main, store
+from app_backend import config, embedder, main, store
 
 
 @pytest.fixture

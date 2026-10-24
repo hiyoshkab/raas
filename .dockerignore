@@ -4,5 +4,6 @@ __pycache__
 .pytest_cache
 .env
 .env.*
-tests
+backend/tests
+app-frontend
 terraform

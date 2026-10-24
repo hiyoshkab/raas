@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app import config, llm
+from app_backend import config, llm
 
 
 SOURCES = [

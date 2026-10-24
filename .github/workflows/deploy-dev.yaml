@@ -60,7 +60,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/helm.yaml
     with:
-      image_repository: ${{ vars.DOCKERHUB_REPO }}/raas-backend
+      image_repository: ${{ vars.DOCKERHUB_REPO }}
       image_tag: sha-${{ github.sha }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}

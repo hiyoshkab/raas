@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       image_repository:
-        description: Container image repository to deploy; omit to reuse the installed release's image.
+        description: Shared image repository prefix for frontend and backend; omit with image_tag to reuse installed release values.
         required: false
         type: string
       image_tag:
-        description: Container image tag to deploy; omit to reuse the installed release's image.
+        description: Shared frontend and backend image tag; omit with image_repository to reuse installed release values.
         required: false
         type: string
     secrets:
@@ -54,31 +54,44 @@ jobs:
         with:
           version: "3.12.0"
 
-      - name: Get Latest Image Tag
-        id: image
-        if: inputs.image_tag == ''
-        env: 
-          DOCKERHUB_REPO: ${{ vars.DOCKERHUB_REPO }}
+      - name: Resolve image references
+        id: images
+        env:
+          IMAGE_REPOSITORY: ${{ inputs.image_repository }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
         shell: bash
         run: |
-          tag=$(curl -fsSL "https://hub.docker.com/v2/repositories/${DOCKERHUB_REPO}/raas-backend/tags?page_size=1" | jq -r '.results[0].name')
-          echo tag=$tag >> $GITHUB_OUTPUT
+          if [[ -n "$IMAGE_REPOSITORY" && -n "$IMAGE_TAG" ]]; then
+            echo "frontend_repository=${IMAGE_REPOSITORY}/raas-frontend" >> "$GITHUB_OUTPUT"
+            echo "frontend_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+            echo "backend_repository=${IMAGE_REPOSITORY}/raas-backend" >> "$GITHUB_OUTPUT"
+            echo "backend_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          elif [[ -z "$IMAGE_REPOSITORY" && -z "$IMAGE_TAG" ]]; then
+            values="$(helm get values raas --namespace raas --all --output json)"
+            echo "frontend_repository=$(jq -er '.frontendImage.repository | select(type == "string" and length > 0)' <<< "$values")" >> "$GITHUB_OUTPUT"
+            echo "frontend_tag=$(jq -er '.frontendImage.tag | select(type == "string" and length > 0)' <<< "$values")" >> "$GITHUB_OUTPUT"
+            echo "backend_repository=$(jq -er '.backendImage.repository | select(type == "string" and length > 0)' <<< "$values")" >> "$GITHUB_OUTPUT"
+            echo "backend_tag=$(jq -er '.backendImage.tag | select(type == "string" and length > 0)' <<< "$values")" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::image_repository and image_tag must either both be provided or both be omitted."
+            exit 1
+          fi
 
       - name: Helm Deploy
         env:
-          IMAGE_REPOSITORY: ${{ inputs.image_repository || vars.DOCKERHUB_REPO }}/raas-backend
-          IMAGE_TAG: ${{ inputs.image_tag || steps.image.outputs.tag }}
-          FRONTEND_IMAGE_REPOSITORY: ${{ vars.FRONTEND_IMAGE_REPOSITORY }}
-          FRONTEND_IMAGE_TAG: ${{ vars.FRONTEND_IMAGE_TAG }}
+          FRONTEND_IMAGE_REPOSITORY: ${{ steps.images.outputs.frontend_repository }}
+          FRONTEND_IMAGE_TAG: ${{ steps.images.outputs.frontend_tag }}
+          BACKEND_IMAGE_REPOSITORY: ${{ steps.images.outputs.backend_repository }}
+          BACKEND_IMAGE_TAG: ${{ steps.images.outputs.backend_tag }}
           AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
           AZURE_APP_CLIENT_ID: ${{ vars.AZURE_APP_CLIENT_ID }}
         run: |
           helm upgrade --install raas ./helm/raas \
             --namespace raas \
-            --set-string backendImage.repository="${IMAGE_REPOSITORY}" \
-            --set-string backendImage.tag="${IMAGE_TAG}" \
             --set-string frontendImage.repository="${FRONTEND_IMAGE_REPOSITORY}" \
             --set-string frontendImage.tag="${FRONTEND_IMAGE_TAG}" \
+            --set-string backendImage.repository="${BACKEND_IMAGE_REPOSITORY}" \
+            --set-string backendImage.tag="${BACKEND_IMAGE_TAG}" \
             --set-string appConfig.azureOpenAIEndpoint="${AZURE_OPENAI_ENDPOINT}" \
             --set-string azureWorkloadIdentity.clientId="${AZURE_APP_CLIENT_ID}" \
             --atomic \

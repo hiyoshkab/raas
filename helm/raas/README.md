@@ -1,11 +1,11 @@
 # RAAS Helm chart
 
 This chart installs the RAAS frontend, API, and Qdrant StatefulSet into the
-`raas` namespace. The app pipeline runs tests, builds and pushes the API image
-tagged with the commit SHA, then calls the reusable Helm workflow to deploy it.
-Changes under `helm/` trigger the same reusable workflow directly, reusing the
-image repository and tag from the currently installed Helm release instead of
-rebuilding the image.
+`raas` namespace. The app pipeline runs frontend and backend tests, builds and pushes
+both images tagged with the commit SHA, then calls the reusable Helm workflow
+to deploy them together. Changes under `helm/` trigger the same reusable
+workflow directly, reusing the frontend and backend image references stored in
+the currently installed Helm release.
 
 ## Deploy from GitHub Actions
 
@@ -20,9 +20,6 @@ The workflow expects these GitHub repository variables:
 - `AZURE_APP_CLIENT_ID`: client ID from Terraform's `app_identity_client_id`
   output. It configures the app's Kubernetes service account for Azure
   Workload Identity.
-- `FRONTEND_IMAGE_REPOSITORY` and `FRONTEND_IMAGE_TAG`: repository and tag for
-  the separately built frontend image.
-
 It expects these GitHub Actions secrets:
 
 - `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: credentials used to push the
@@ -49,7 +46,7 @@ helm template raas ./helm/raas \
   --set-string backendImage.repository=docker.io/YOUR_DOCKERHUB_USERNAME/raas-backend \
   --set-string backendImage.tag=sha-YOUR_COMMIT_SHA \
   --set-string frontendImage.repository=docker.io/YOUR_DOCKERHUB_USERNAME/raas-frontend \
-  --set-string frontendImage.tag=YOUR_FRONTEND_TAG \
+  --set-string frontendImage.tag=sha-YOUR_COMMIT_SHA \
   --set-string azureWorkloadIdentity.clientId=YOUR_APP_IDENTITY_CLIENT_ID
 ```
 

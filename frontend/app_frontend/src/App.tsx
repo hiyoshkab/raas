@@ -1,4 +1,35 @@
+import { useState, type SubmitEvent } from "react";
+
 function App() {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadMessage, setUploadMessage] = useState("");
+
+  async function handleUpload(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!file) {
+      alert("Please select a file to upload.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/ingest", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      alert(`Upload failed: ${response.status}`);
+      return;
+    }
+
+    const data = await response.json();
+    setUploadMessage(`Uploaded ${data.fileName} (${data.chunks} chunks).`);
+    console.log(data);
+  }
+  
   return (
     <main className="page">
       <header className="header">
@@ -17,16 +48,20 @@ function App() {
             <p>Upload a plain-text file to the knowledge base.</p>
           </div>
         </div>
-        <div className="form-row">
-          <label className="file-picker">
-            <span>Choose a .txt or .md file</span>
-            <input
-              type="file"
-              accept=".txt,.md,text/plain,text/markdown"
-            />
-          </label>
-          <button type="button">Upload</button>
-        </div>
+        <form onSubmit={handleUpload}>
+          <div className="form-row">
+            <label className="file-picker">
+              <span>{file?.name ?? "Choose a .txt or .md file"}</span>
+              <input
+                type="file"
+                accept=".txt,.md,text/plain,text/markdown"
+                onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null) }
+              />
+            </label>
+            <button type="submit">Upload</button>
+          </div>
+        </form>
+        {uploadMessage && <p className="status">{uploadMessage}</p>}
       </section>
 
       <section className="card" aria-labelledby="question-heading">

@@ -4,6 +4,9 @@ function App() {
   const [file, setFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState("");
 
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+
   async function handleUpload(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -22,11 +25,45 @@ function App() {
 
     if (!response.ok) {
       alert(`Upload failed: ${response.status}`);
+      console.error(await response.text());
       return;
     }
 
     const data = await response.json();
-    setUploadMessage(`Uploaded ${data.fileName} (${data.chunks} chunks).`);
+    setUploadMessage(`Uploaded ${data.filename} (${data.chunks} chunks).`);
+    console.log(data);
+  }
+
+  async function handleQuestion(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!question) {
+      alert("Please enter a question.");
+      return;
+    }
+
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) {
+      alert("Please enter a non-empty question.");
+      return;
+    }
+
+    const response = await fetch("/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: trimmedQuestion, top_k: 3 }),
+    });
+
+    if (!response.ok) {
+      alert(`Query failed: ${response.status}`);
+      console.error(await response.text());
+      return;
+    }
+
+    const data = await response.json();
+    setAnswer(data.answer);
     console.log(data);
   }
   
@@ -72,23 +109,27 @@ function App() {
             <p>Answers include the passages used to form them.</p>
           </div>
         </div>
-        <div className="form-row">
-          <label className="visually-hidden" htmlFor="question">
-            Your question
-          </label>
-          <input
-            id="question"
-            className="question-input"
-            placeholder="What would you like to know?"
-          />
-          <button type="button">Ask</button>
-        </div>
+        <form onSubmit={handleQuestion}>
+          <div className="form-row">
+            <label className="visually-hidden" htmlFor="question">
+              Your question
+            </label>
+            <input
+              id="question"
+              className="question-input"
+              placeholder="What would you like to know?"
+              value={question}
+              onChange={(event) => setQuestion(event.currentTarget.value)}
+            />
+            <button type="submit">Ask</button>
+          </div>
+        </form>
       </section>
 
       <section className="card result" aria-labelledby="answer-heading">
         <h2 id="answer-heading">Answer</h2>
         <p className="answer-text">
-          Your answer and its supporting passages will appear here.
+          {answer || "Ask a question to get started"}
         </p>
       </section>
       <footer>RaaS · Document Q&amp;A</footer>

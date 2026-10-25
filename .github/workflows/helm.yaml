@@ -14,11 +14,7 @@ on:
     secrets:
       AZURE_CREDENTIALS:
         required: true
-  push:
-    branches: [main]
-    paths:
-      - "helm/**"
-      - ".github/workflows/helm.yaml"
+
   workflow_dispatch:
 
 permissions:

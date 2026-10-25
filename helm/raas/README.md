@@ -1,8 +1,8 @@
 # RAAS Helm chart
 
-This chart installs the RAAS API and its Qdrant StatefulSet into the `raas`
-namespace. The app pipeline runs tests, builds and pushes the API image tagged
-with the commit SHA, then calls the reusable Helm workflow to deploy that image.
+This chart installs the RAAS frontend, API, and Qdrant StatefulSet into the
+`raas` namespace. The app pipeline runs tests, builds and pushes the API image
+tagged with the commit SHA, then calls the reusable Helm workflow to deploy it.
 Changes under `helm/` trigger the same reusable workflow directly, reusing the
 image repository and tag from the currently installed Helm release instead of
 rebuilding the image.
@@ -20,6 +20,8 @@ The workflow expects these GitHub repository variables:
 - `AZURE_APP_CLIENT_ID`: client ID from Terraform's `app_identity_client_id`
   output. It configures the app's Kubernetes service account for Azure
   Workload Identity.
+- `FRONTEND_IMAGE_REPOSITORY` and `FRONTEND_IMAGE_TAG`: repository and tag for
+  the separately built frontend image.
 
 It expects these GitHub Actions secrets:
 
@@ -44,10 +46,13 @@ Render the chart locally with:
 ```sh
 helm template raas ./helm/raas \
   --namespace raas \
-  --set-string image.repository=docker.io/YOUR_DOCKERHUB_USERNAME/raas-backend \
-  --set-string image.tag=sha-YOUR_COMMIT_SHA \
+  --set-string backendImage.repository=docker.io/YOUR_DOCKERHUB_USERNAME/raas-backend \
+  --set-string backendImage.tag=sha-YOUR_COMMIT_SHA \
+  --set-string frontendImage.repository=docker.io/YOUR_DOCKERHUB_USERNAME/raas-frontend \
+  --set-string frontendImage.tag=YOUR_FRONTEND_TAG \
   --set-string azureWorkloadIdentity.clientId=YOUR_APP_IDENTITY_CLIENT_ID
 ```
 
-For a private Docker Hub image, configure an image-pull secret in the `raas`
-namespace and set `image.pullSecrets` to its name in the chart values.
+For private Docker Hub images, configure an image-pull secret in the `raas`
+namespace and set `backendImage.pullSecrets` and/or `frontendImage.pullSecrets`
+to its name in the chart values.

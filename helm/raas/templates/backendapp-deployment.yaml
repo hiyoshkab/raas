@@ -21,14 +21,14 @@ spec:
         azure.workload.identity/use: "true"
     spec:
       serviceAccountName: {{ .Values.azureWorkloadIdentity.serviceAccountName }}
-      {{- with .Values.image.pullSecrets }}
+      {{- with .Values.backendImage.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: raas-backend
-          image: "{{ required "image.repository is required" .Values.image.repository }}:{{ required "image.tag is required" .Values.image.tag }}"
-          imagePullPolicy: {{ if eq .Values.image.tag "latest" }}Always{{ else }}{{ .Values.image.pullPolicy }}{{ end }}
+          image: "{{ required "backendImage.repository is required" .Values.backendImage.repository }}:{{ required "backendImage.tag is required" .Values.backendImage.tag }}"
+          imagePullPolicy: {{ if eq .Values.backendImage.tag "latest" }}Always{{ else }}{{ .Values.backendImage.pullPolicy }}{{ end }}
           ports:
             - name: http
               containerPort: 8000

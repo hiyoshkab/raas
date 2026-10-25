@@ -68,13 +68,17 @@ jobs:
         env:
           IMAGE_REPOSITORY: ${{ inputs.image_repository || vars.DOCKERHUB_REPO }}/raas-backend
           IMAGE_TAG: ${{ inputs.image_tag || steps.image.outputs.tag }}
+          FRONTEND_IMAGE_REPOSITORY: ${{ vars.FRONTEND_IMAGE_REPOSITORY }}
+          FRONTEND_IMAGE_TAG: ${{ vars.FRONTEND_IMAGE_TAG }}
           AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
           AZURE_APP_CLIENT_ID: ${{ vars.AZURE_APP_CLIENT_ID }}
         run: |
           helm upgrade --install raas ./helm/raas \
             --namespace raas \
-            --set-string image.repository="${IMAGE_REPOSITORY}" \
-            --set-string image.tag="${IMAGE_TAG}" \
+            --set-string backendImage.repository="${IMAGE_REPOSITORY}" \
+            --set-string backendImage.tag="${IMAGE_TAG}" \
+            --set-string frontendImage.repository="${FRONTEND_IMAGE_REPOSITORY}" \
+            --set-string frontendImage.tag="${FRONTEND_IMAGE_TAG}" \
             --set-string appConfig.azureOpenAIEndpoint="${AZURE_OPENAI_ENDPOINT}" \
             --set-string azureWorkloadIdentity.clientId="${AZURE_APP_CLIENT_ID}" \
             --atomic \

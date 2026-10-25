@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-frontend
+  labels:
+    {{- include "raas.labels" . | nindent 4 }}
+    app: app-frontend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: app-frontend
+  template:
+    metadata:
+      annotations:
+        helm.sh/revision: {{ .Release.Revision | quote }}
+      labels:
+        app: app-frontend
+        app.kubernetes.io/name: raas
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- with .Values.frontendImage.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: raas-frontend
+          image: "{{ required "frontendImage.repository is required" .Values.frontendImage.repository }}:{{ required "frontendImage.tag is required" .Values.frontendImage.tag }}"
+          imagePullPolicy: {{ if eq .Values.frontendImage.tag "latest" }}Always{{ else }}{{ .Values.frontendImage.pullPolicy }}{{ end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

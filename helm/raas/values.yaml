@@ -1,14 +1,14 @@
-image:
+backendImage:
   repository: ""
   tag: ""
   pullPolicy: IfNotPresent
   pullSecrets: []
 
-replicaCount: 1
-
-service:
+backendService:
   type: ClusterIP
   port: 8000
+
+replicaCount: 1
 
 appConfig:
   azureOpenAIEndpoint: ""
@@ -49,3 +49,13 @@ qdrant:
     limits:
       cpu: "1"
       memory: 2Gi
+
+frontendImage:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+frontendService:
+  type: ClusterIP
+  port: 80

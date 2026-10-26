@@ -66,6 +66,12 @@ variable "aks_subnet_address_prefixes" {
   default     = ["10.0.1.0/24"]
 }
 
+variable "foundry_subnet_address_prefixes" {
+  type        = list(string)
+  description = "Address prefixes for the Foundry subnet."
+  default     = ["10.0.2.0/24"]
+}
+
 variable "aks_pod_cidr" {
   type        = string
   description = "Non-overlapping pod address range for Azure CNI Overlay."

@@ -6,7 +6,7 @@ resource "azurerm_cognitive_account" "foundry" {
   sku_name                      = var.foundry_sku_name
   custom_subdomain_name         = var.foundry_custom_subdomain_name
   local_auth_enabled            = false
-  public_network_access_enabled = true
+  public_network_access_enabled = false
   project_management_enabled    = true
 
   identity {
@@ -30,6 +30,8 @@ resource "azurerm_cognitive_deployment" "foundry_model" {
   }
 }
 
+resource "random_uuid" "app_foundry_role_assignment" {}
+
 resource "azurerm_role_assignment" "app_foundry_user" {
   name                 = random_uuid.app_foundry_role_assignment.result
   scope                = azurerm_cognitive_account.foundry.id
@@ -38,4 +40,32 @@ resource "azurerm_role_assignment" "app_foundry_user" {
   principal_type       = "ServicePrincipal"
 }
 
-resource "random_uuid" "app_foundry_role_assignment" {}
+resource "azurerm_private_endpoint" "foundry_private_endpoint" {
+  name                = "foundry-pe"
+  resource_group_name = var.foundry_resource_group_name
+  location            = azurerm_virtual_network.aks_vnet.location
+  subnet_id           = azurerm_subnet.foundry_subnet.id
+
+  private_service_connection {
+    name                           = "foundry-psc"
+    private_connection_resource_id = azurerm_cognitive_account.foundry.id
+    is_manual_connection           = false
+    subresource_names              = ["account"]
+  }
+
+  private_dns_zone_group {
+    name                 = "foundry"
+    private_dns_zone_ids = [azurerm_private_dns_zone.foundry_private_dns_zone.id]
+  }
+}
+
+resource "azurerm_private_dns_zone" "foundry_private_dns_zone" {
+  name                = "privatelink.cognitiveservices.azure.com"
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "foundry_private_dns_zone_link" {
+  name                = "foundry-dns-link"
+  private_dns_zone_id = azurerm_private_dns_zone.foundry_private_dns_zone.id
+  virtual_network_id  = azurerm_virtual_network.aks_vnet.id
+}

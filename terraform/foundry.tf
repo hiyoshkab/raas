@@ -61,7 +61,7 @@ resource "azurerm_private_endpoint" "foundry_private_endpoint" {
 
 resource "azurerm_private_dns_zone" "foundry_private_dns_zone" {
   name                = "privatelink.cognitiveservices.azure.com"
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = var.foundry_resource_group_name
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "foundry_private_dns_zone_link" {
